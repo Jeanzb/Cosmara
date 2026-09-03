@@ -8,4 +8,5 @@ public sealed record NasaSearchCriteria(
     string? Camera,
     string? Mission,
     int Page,
-    int PageSize);
+    int PageSize,
+    int PageScanLimit = 8);

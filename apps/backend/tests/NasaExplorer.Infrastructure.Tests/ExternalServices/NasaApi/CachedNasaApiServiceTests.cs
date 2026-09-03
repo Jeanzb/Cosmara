@@ -51,7 +51,43 @@ public sealed class CachedNasaApiServiceTests
         Assert.Equal(1, handler.RequestCount);
     }
 
-    private static CachedNasaApiService CreateService(CountingHttpMessageHandler handler)
+    [Fact]
+    public async Task SearchImagesAsync_treats_corrupt_cache_json_as_a_miss()
+    {
+        CountingHttpMessageHandler handler = new(SearchResponseJson);
+        CachedNasaApiService service = CreateService(handler, new CorruptDistributedCache());
+
+        NasaSearchResult result = await service.SearchImagesAsync(new NasaSearchCriteria(
+            "mars",
+            null,
+            null,
+            null,
+            null,
+            null,
+            1,
+            24));
+
+        Assert.Single(result.Images);
+        Assert.Equal(1, handler.RequestCount);
+    }
+
+    [Fact]
+    public async Task SearchImagesAsync_propagates_caller_cancellation_from_cache()
+    {
+        CountingHttpMessageHandler handler = new(SearchResponseJson);
+        CachedNasaApiService service = CreateService(handler, new CorruptDistributedCache());
+        using CancellationTokenSource cancellationSource = new();
+        cancellationSource.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => service.SearchImagesAsync(
+            new NasaSearchCriteria("mars", null, null, null, null, null, 1, 24),
+            cancellationSource.Token));
+        Assert.Equal(0, handler.RequestCount);
+    }
+
+    private static CachedNasaApiService CreateService(
+        CountingHttpMessageHandler handler,
+        IDistributedCache? cache = null)
     {
         NasaApiService innerService = new(new HttpClient(handler)
         {
@@ -60,7 +96,7 @@ public sealed class CachedNasaApiServiceTests
 
         return new CachedNasaApiService(
             innerService,
-            new MemoryDistributedCache(Options.Create(new MemoryDistributedCacheOptions())),
+            cache ?? new MemoryDistributedCache(Options.Create(new MemoryDistributedCacheOptions())),
             Options.Create(new NasaApiOptions
             {
                 SearchCacheMinutes = 15,
@@ -133,5 +169,40 @@ public sealed class CachedNasaApiServiceTests
                 Content = new StringContent(_responseJson, Encoding.UTF8, "application/json")
             });
         }
+    }
+
+    private sealed class CorruptDistributedCache : IDistributedCache
+    {
+        private static readonly byte[] CorruptJson = Encoding.UTF8.GetBytes("not-json");
+
+        public byte[]? Get(string key) => CorruptJson;
+
+        public Task<byte[]?> GetAsync(string key, CancellationToken token = default)
+        {
+            token.ThrowIfCancellationRequested();
+            return Task.FromResult<byte[]?>(CorruptJson);
+        }
+
+        public void Refresh(string key)
+        {
+        }
+
+        public Task RefreshAsync(string key, CancellationToken token = default) => Task.CompletedTask;
+
+        public void Remove(string key)
+        {
+        }
+
+        public Task RemoveAsync(string key, CancellationToken token = default) => Task.CompletedTask;
+
+        public void Set(string key, byte[] value, DistributedCacheEntryOptions options)
+        {
+        }
+
+        public Task SetAsync(
+            string key,
+            byte[] value,
+            DistributedCacheEntryOptions options,
+            CancellationToken token = default) => Task.CompletedTask;
     }
 }

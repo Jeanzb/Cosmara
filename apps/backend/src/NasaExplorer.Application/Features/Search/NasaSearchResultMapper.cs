@@ -10,6 +10,8 @@ internal static class NasaSearchResultMapper
     {
         return new NasaSearchResultDto
         {
+            SearchId = Guid.NewGuid().ToString("N"),
+            Mode = "standard",
             TotalHits = result.TotalHits,
             Page = result.Page,
             PageSize = result.PageSize,

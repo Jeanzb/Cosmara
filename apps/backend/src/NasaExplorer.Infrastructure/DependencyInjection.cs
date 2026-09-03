@@ -7,6 +7,7 @@ using NasaExplorer.Domain.Interfaces.Repositories;
 using NasaExplorer.Domain.Interfaces.Services;
 using NasaExplorer.Infrastructure.Auth;
 using NasaExplorer.Infrastructure.Exports;
+using NasaExplorer.Infrastructure.ExternalServices;
 using NasaExplorer.Infrastructure.ExternalServices.NasaApi;
 using NasaExplorer.Infrastructure.ExternalServices.OpenAi;
 using NasaExplorer.Infrastructure.Persistence;
@@ -33,7 +34,8 @@ public static class DependencyInjection
         services.AddHttpContextAccessor();
         services.AddScoped<ICurrentUserService, CurrentUserService>();
         string? redisConnectionString = config["Redis:ConnectionString"]
-            ?? config["REDIS_CONNECTION_STRING"];
+            ?? config["REDIS_CONNECTION_STRING"]
+            ?? config["REDIS_URL"];
 
         if (string.IsNullOrWhiteSpace(redisConnectionString))
         {
@@ -74,6 +76,7 @@ public static class DependencyInjection
             client.Timeout = TimeSpan.FromSeconds(20);
         });
         services.AddScoped<INasaApiService, CachedNasaApiService>();
+        services.AddSingleton<ISemanticSearchCache, SemanticSearchCache>();
         services.Configure<OpenAiOptions>(options =>
         {
             options.BaseUrl = config["AI_BASE_URL"]

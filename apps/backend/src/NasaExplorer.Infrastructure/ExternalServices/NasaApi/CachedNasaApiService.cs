@@ -4,6 +4,8 @@ using Microsoft.Extensions.Options;
 using NasaExplorer.Domain.Interfaces.Services;
 using NasaExplorer.Domain.Models.Nasa;
 using System.Globalization;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 
 namespace NasaExplorer.Infrastructure.ExternalServices.NasaApi;
@@ -69,9 +71,20 @@ public sealed class CachedNasaApiService : INasaApiService
     {
         string? cachedJson = await GetStringAsync(cacheKey, cancellationToken);
 
-        return string.IsNullOrWhiteSpace(cachedJson)
-            ? null
-            : JsonSerializer.Deserialize<CachedNasaSearchResult>(cachedJson, JsonOptions)?.ToDomain();
+        if (string.IsNullOrWhiteSpace(cachedJson))
+        {
+            return null;
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize<CachedNasaSearchResult>(cachedJson, JsonOptions)?.ToDomain();
+        }
+        catch (JsonException exception)
+        {
+            _logger.LogWarning(exception, "NASA search cache entry was corrupt; treating it as a miss.");
+            return null;
+        }
     }
 
     private async Task SetCachedSearchResultAsync(
@@ -93,9 +106,20 @@ public sealed class CachedNasaApiService : INasaApiService
     {
         string? cachedJson = await GetStringAsync(cacheKey, cancellationToken);
 
-        return string.IsNullOrWhiteSpace(cachedJson)
-            ? null
-            : JsonSerializer.Deserialize<NasaAssetFile[]>(cachedJson, JsonOptions);
+        if (string.IsNullOrWhiteSpace(cachedJson))
+        {
+            return null;
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize<NasaAssetFile[]>(cachedJson, JsonOptions);
+        }
+        catch (JsonException exception)
+        {
+            _logger.LogWarning(exception, "NASA asset cache entry was corrupt; treating it as a miss.");
+            return null;
+        }
     }
 
     private async Task SetCachedAssetFilesAsync(
@@ -116,9 +140,13 @@ public sealed class CachedNasaApiService : INasaApiService
         {
             return await _cache.GetStringAsync(cacheKey, cancellationToken);
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (Exception exception)
         {
-            _logger.LogWarning(exception, "NASA cache read failed for {CacheKey}", cacheKey);
+            _logger.LogWarning(exception, "NASA cache read failed; continuing without the cached value.");
             return null;
         }
     }
@@ -140,18 +168,21 @@ public sealed class CachedNasaApiService : INasaApiService
                 },
                 cancellationToken);
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (Exception exception)
         {
-            _logger.LogWarning(exception, "NASA cache write failed for {CacheKey}", cacheKey);
+            _logger.LogWarning(exception, "NASA cache write failed; continuing without persistence.");
         }
     }
 
     private static string BuildSearchCacheKey(NasaSearchCriteria criteria)
     {
-        return string.Join(
-            '|',
+        string cachePayload = string.Join(
+            '\u001f',
             [
-                "nasa:search",
                 criteria.Query.Trim().ToLowerInvariant(),
                 criteria.DateFrom?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) ?? string.Empty,
                 criteria.DateTo?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) ?? string.Empty,
@@ -159,8 +190,12 @@ public sealed class CachedNasaApiService : INasaApiService
                 criteria.Camera?.Trim().ToLowerInvariant() ?? string.Empty,
                 criteria.Mission?.Trim().ToLowerInvariant() ?? string.Empty,
                 criteria.Page.ToString(CultureInfo.InvariantCulture),
-                criteria.PageSize.ToString(CultureInfo.InvariantCulture)
+                criteria.PageSize.ToString(CultureInfo.InvariantCulture),
+                criteria.PageScanLimit.ToString(CultureInfo.InvariantCulture)
             ]);
+        string cacheHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(cachePayload))).ToLowerInvariant();
+
+        return $"nasa:search:v2:{cacheHash}";
     }
 
     private sealed record CachedNasaSearchResult(

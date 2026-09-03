@@ -125,18 +125,31 @@ internal sealed class StubAiEnrichmentService : IAiEnrichmentService
     private readonly AiImageEnrichmentResult _enrichmentResult;
     private readonly string _comparisonResult;
     private readonly IReadOnlyCollection<string> _tags;
-    private readonly string _semanticSearchResult;
+    private readonly SemanticSearchPlan _semanticSearchPlan;
+
+    public SemanticSearchPlannerIdentity SemanticSearchIdentity => new(
+        _semanticSearchPlan.Model,
+        _semanticSearchPlan.PromptVersion);
 
     public StubAiEnrichmentService(
         AiImageEnrichmentResult? enrichmentResult = null,
         string comparisonResult = "Comparison analysis",
         IReadOnlyCollection<string>? tags = null,
-        string semanticSearchResult = "semantic query")
+        string semanticSearchResult = "semantic query",
+        SemanticSearchPlan? semanticSearchPlan = null)
     {
         _enrichmentResult = enrichmentResult ?? new AiImageEnrichmentResult("Description", ["fact"], "Context");
         _comparisonResult = comparisonResult;
         _tags = tags ?? ["mars"];
-        _semanticSearchResult = semanticSearchResult;
+        _semanticSearchPlan = semanticSearchPlan ?? new SemanticSearchPlan(
+            semanticSearchResult,
+            [semanticSearchResult],
+            null,
+            null,
+            null,
+            null,
+            null,
+            "en");
     }
 
     public int EnrichCalls { get; private set; }
@@ -177,10 +190,13 @@ internal sealed class StubAiEnrichmentService : IAiEnrichmentService
         return Task.FromResult(_tags);
     }
 
-    public Task<string> CreateSemanticSearchAsync(string naturalLanguageQuery, CancellationToken cancellationToken = default)
+    public Task<SemanticSearchPlan> CreateSemanticSearchPlanAsync(
+        string naturalLanguageQuery,
+        string locale,
+        CancellationToken cancellationToken = default)
     {
         SemanticSearchCalls++;
 
-        return Task.FromResult(_semanticSearchResult);
+        return Task.FromResult(_semanticSearchPlan with { Locale = locale });
     }
 }

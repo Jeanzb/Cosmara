@@ -35,4 +35,8 @@ public sealed class NasaImageDto
     public NasaImageTimelineDto? Timeline { get; set; }
 
     public IReadOnlyCollection<string> Keywords { get; set; } = [];
+
+    public double? RelevanceScore { get; set; }
+
+    public IReadOnlyCollection<string> MatchReasons { get; set; } = [];
 }

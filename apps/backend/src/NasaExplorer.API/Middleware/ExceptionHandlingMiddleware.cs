@@ -41,6 +41,26 @@ public sealed class ExceptionHandlingMiddleware
                 message = exception.Message
             });
         }
+        catch (ExpiredCursorException exception)
+        {
+            await WriteResponseAsync(context, StatusCodes.Status410Gone, new
+            {
+                code = "search_session_expired",
+                message = exception.Message
+            });
+        }
+        catch (UpstreamServiceUnavailableException exception)
+        {
+            await WriteResponseAsync(context, StatusCodes.Status503ServiceUnavailable, new
+            {
+                code = "nasa_upstream_unavailable",
+                message = exception.Message
+            });
+        }
+        catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (Exception exception)
         {
             _logger.LogError(exception, "Unhandled request exception.");

@@ -19,6 +19,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NasaExplorer.Application.Te
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NasaExplorer.Infrastructure.Tests", "tests\NasaExplorer.Infrastructure.Tests\NasaExplorer.Infrastructure.Tests.csproj", "{6E89EE52-949E-4D1E-9285-B8EC5CF51F0D}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NasaExplorer.API.Tests", "tests\NasaExplorer.API.Tests\NasaExplorer.API.Tests.csproj", "{4F2A1F46-1C2B-4B8F-AAD1-E4E1166F1C67}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -101,6 +103,18 @@ Global
 		{6E89EE52-949E-4D1E-9285-B8EC5CF51F0D}.Release|x64.Build.0 = Release|Any CPU
 		{6E89EE52-949E-4D1E-9285-B8EC5CF51F0D}.Release|x86.ActiveCfg = Release|Any CPU
 		{6E89EE52-949E-4D1E-9285-B8EC5CF51F0D}.Release|x86.Build.0 = Release|Any CPU
+		{4F2A1F46-1C2B-4B8F-AAD1-E4E1166F1C67}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4F2A1F46-1C2B-4B8F-AAD1-E4E1166F1C67}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4F2A1F46-1C2B-4B8F-AAD1-E4E1166F1C67}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{4F2A1F46-1C2B-4B8F-AAD1-E4E1166F1C67}.Debug|x64.Build.0 = Debug|Any CPU
+		{4F2A1F46-1C2B-4B8F-AAD1-E4E1166F1C67}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{4F2A1F46-1C2B-4B8F-AAD1-E4E1166F1C67}.Debug|x86.Build.0 = Debug|Any CPU
+		{4F2A1F46-1C2B-4B8F-AAD1-E4E1166F1C67}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4F2A1F46-1C2B-4B8F-AAD1-E4E1166F1C67}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4F2A1F46-1C2B-4B8F-AAD1-E4E1166F1C67}.Release|x64.ActiveCfg = Release|Any CPU
+		{4F2A1F46-1C2B-4B8F-AAD1-E4E1166F1C67}.Release|x64.Build.0 = Release|Any CPU
+		{4F2A1F46-1C2B-4B8F-AAD1-E4E1166F1C67}.Release|x86.ActiveCfg = Release|Any CPU
+		{4F2A1F46-1C2B-4B8F-AAD1-E4E1166F1C67}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -112,5 +126,6 @@ Global
 		{DFF69DB0-4B8B-4309-9AA3-C6515E6A676A} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{98965511-8CD1-4700-82C0-88EA2CF59960} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{6E89EE52-949E-4D1E-9285-B8EC5CF51F0D} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
+		{4F2A1F46-1C2B-4B8F-AAD1-E4E1166F1C67} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 	EndGlobalSection
 EndGlobal

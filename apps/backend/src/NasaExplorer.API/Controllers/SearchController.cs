@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
+using NasaExplorer.Application.Features.Search.Commands.TrackSearchEvent;
 using NasaExplorer.Application.Features.Search.Queries.SearchNasaImages;
 using NasaExplorer.Application.Features.Search.Queries.SemanticSearchNasaImages;
 
@@ -51,6 +52,9 @@ public sealed class SearchController : ControllerBase
         [FromQuery] string? mission,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 24,
+        [FromQuery] string? locale = null,
+        [FromQuery] string? cursor = null,
+        [FromQuery] string? suppressInferred = null,
         CancellationToken cancellationToken = default)
     {
         SemanticSearchNasaImagesQuery request = new(
@@ -61,8 +65,20 @@ public sealed class SearchController : ControllerBase
             camera,
             mission,
             page,
-            pageSize);
+            pageSize,
+            locale,
+            cursor,
+            suppressInferred);
 
         return Ok(await _mediator.Send(request, cancellationToken));
+    }
+
+    [HttpPost("events")]
+    public async Task<IActionResult> TrackEvent(
+        [FromBody] TrackSearchEventCommand request,
+        CancellationToken cancellationToken = default)
+    {
+        await _mediator.Send(request, cancellationToken);
+        return NoContent();
     }
 }

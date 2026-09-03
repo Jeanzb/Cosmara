@@ -11,4 +11,7 @@ public sealed record SemanticSearchNasaImagesQuery(
     string? Camera,
     string? Mission,
     int Page,
-    int PageSize) : IRequest<NasaSearchResultDto>;
+    int PageSize,
+    string? Locale = null,
+    string? Cursor = null,
+    string? SuppressInferred = null) : IRequest<NasaSearchResultDto>;

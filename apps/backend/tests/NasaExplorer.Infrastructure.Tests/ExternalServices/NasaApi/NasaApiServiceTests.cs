@@ -2,6 +2,7 @@ using NasaExplorer.Domain.Models.Nasa;
 using NasaExplorer.Infrastructure.ExternalServices.NasaApi;
 using System.Net;
 using System.Text;
+using System.Text.Json;
 
 namespace NasaExplorer.Infrastructure.Tests.ExternalServices.NasaApi;
 
@@ -24,7 +25,8 @@ public sealed class NasaApiServiceTests
             "mastcam",
             null,
             2,
-            2));
+            2,
+            PageScanLimit: 1));
 
         NasaImageAsset image = Assert.Single(result.Images);
 
@@ -105,7 +107,8 @@ public sealed class NasaApiServiceTests
     {
         StubHttpMessageHandler handler = new(
             SearchResponseWithOlderDateJson,
-            SearchResponseJson);
+            SearchResponseJson,
+            BuildSearchPageJson(0));
         NasaApiService service = new(new HttpClient(handler)
         {
             BaseAddress = new Uri("https://images-api.nasa.gov/")
@@ -124,13 +127,13 @@ public sealed class NasaApiServiceTests
         NasaImageAsset image = Assert.Single(result.Images);
 
         Assert.Equal("NHQ201906010007", image.NasaImageId);
-        Assert.Equal(2, handler.RequestUris.Count);
+        Assert.Equal(3, handler.RequestUris.Count);
         Assert.Contains("page=1", handler.RequestUris[0].Query);
         Assert.Contains("page=2", handler.RequestUris[1].Query);
     }
 
     [Fact]
-    public async Task SearchImagesAsync_relaxes_recent_short_date_ranges_when_exact_matches_are_empty()
+    public async Task SearchImagesAsync_keeps_recent_date_ranges_strict_when_exact_matches_are_empty()
     {
         StubHttpMessageHandler handler = new(SearchResponseWithCurrentYearDateJson);
         NasaApiService service = new(new HttpClient(handler)
@@ -147,14 +150,70 @@ public sealed class NasaApiServiceTests
             null,
             null,
             1,
-            1));
+            1,
+            PageScanLimit: 1));
 
-        NasaImageAsset image = Assert.Single(result.Images);
-
-        Assert.Equal("RECENT-YEAR-IMAGE", image.NasaImageId);
-        Assert.Equal(43, result.TotalHits);
+        Assert.Empty(result.Images);
+        Assert.Equal(0, result.TotalHits);
+        Assert.Single(handler.RequestUris);
         Assert.Contains($"year_start={today.Year}", handler.RequestUri!.Query);
         Assert.Contains($"year_end={today.Year}", handler.RequestUri.Query);
+    }
+
+    [Fact]
+    public async Task SearchImagesAsync_date_filtered_pages_use_stable_filtered_offsets_without_duplicates()
+    {
+        string sourcePageOne = BuildSearchPageJson(6, "DATE-A", "DATE-B");
+        string sourcePageTwo = BuildSearchPageJson(6, "DATE-C", "DATE-D");
+        string sourcePageThree = BuildSearchPageJson(6, "DATE-E", "DATE-F");
+        NasaSearchCriteria firstPageCriteria = new(
+            "mars",
+            new DateOnly(2024, 1, 1),
+            new DateOnly(2024, 12, 31),
+            null,
+            null,
+            null,
+            1,
+            2);
+        StubHttpMessageHandler firstHandler = new(sourcePageOne, sourcePageTwo, sourcePageThree);
+        NasaApiService firstService = CreateService(firstHandler);
+        StubHttpMessageHandler secondHandler = new(sourcePageOne, sourcePageTwo, sourcePageThree);
+        NasaApiService secondService = CreateService(secondHandler);
+
+        NasaSearchResult firstPage = await firstService.SearchImagesAsync(firstPageCriteria);
+        NasaSearchResult secondPage = await secondService.SearchImagesAsync(firstPageCriteria with { Page = 2 });
+
+        Assert.Equal(["DATE-A", "DATE-B"], firstPage.Images.Select(image => image.NasaImageId));
+        Assert.Equal(["DATE-C", "DATE-D"], secondPage.Images.Select(image => image.NasaImageId));
+        Assert.Empty(firstPage.Images.Select(image => image.NasaImageId).Intersect(
+            secondPage.Images.Select(image => image.NasaImageId),
+            StringComparer.OrdinalIgnoreCase));
+        Assert.Equal(6, firstPage.TotalHits);
+        Assert.Equal(6, secondPage.TotalHits);
+        Assert.Equal(3, secondHandler.RequestUris.Count);
+        Assert.Contains("page=1", secondHandler.RequestUris[0].Query);
+        Assert.Contains("page=2", secondHandler.RequestUris[1].Query);
+    }
+
+    [Fact]
+    public async Task SearchImagesAsync_date_filtered_total_excludes_unscanned_upstream_hits()
+    {
+        StubHttpMessageHandler handler = new(SearchResponseWithOlderDateJson);
+        NasaApiService service = CreateService(handler);
+
+        NasaSearchResult result = await service.SearchImagesAsync(new NasaSearchCriteria(
+            "mars",
+            new DateOnly(2019, 6, 1),
+            new DateOnly(2019, 6, 30),
+            null,
+            null,
+            null,
+            1,
+            1));
+
+        Assert.Empty(result.Images);
+        Assert.Equal(0, result.TotalHits);
+        Assert.Equal(8, handler.RequestUris.Count);
     }
 
 
@@ -337,6 +396,50 @@ public sealed class NasaApiServiceTests
           }
         }
         """;
+
+    private static NasaApiService CreateService(HttpMessageHandler handler)
+    {
+        return new NasaApiService(new HttpClient(handler)
+        {
+            BaseAddress = new Uri("https://images-api.nasa.gov/")
+        });
+    }
+
+    private static string BuildSearchPageJson(int totalHits, params string[] ids)
+    {
+        return JsonSerializer.Serialize(new
+        {
+            collection = new
+            {
+                items = ids.Select(id => new
+                {
+                    data = new[]
+                    {
+                        new
+                        {
+                            center = "JPL",
+                            date_created = "2024-06-01T00:00:00Z",
+                            description = $"Mars image {id}",
+                            keywords = new[] { "Mars" },
+                            media_type = "image",
+                            nasa_id = id,
+                            title = $"Mars {id}"
+                        }
+                    },
+                    links = new[]
+                    {
+                        new
+                        {
+                            href = $"https://images-assets.nasa.gov/image/{id}/{id}~large.jpg",
+                            rel = "preview",
+                            render = "image"
+                        }
+                    }
+                }),
+                metadata = new { total_hits = totalHits }
+            }
+        });
+    }
 
     private sealed class StubHttpMessageHandler : HttpMessageHandler
     {

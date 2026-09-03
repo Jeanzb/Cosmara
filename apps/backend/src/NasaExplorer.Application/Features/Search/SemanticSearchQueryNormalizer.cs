@@ -6,7 +6,7 @@ namespace NasaExplorer.Application.Features.Search;
 
 internal static partial class SemanticSearchQueryNormalizer
 {
-    private const int MaximumCandidateQueries = 5;
+    private const int MaximumCandidateQueries = 2;
 
     private static readonly IReadOnlyDictionary<string, string> TokenTranslations = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
     {
@@ -97,22 +97,6 @@ internal static partial class SemanticSearchQueryNormalizer
         ["via lactea"] = "milky way"
     };
 
-    private static readonly IReadOnlyDictionary<string, string[]> SemanticTagExpansions = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
-    {
-        ["sunset"] = ["sunset", "sunrise", "dusk", "horizon", "solar horizon"],
-        ["sunrise"] = ["sunrise", "dawn", "horizon", "solar horizon"],
-        ["craters"] = ["crater", "craters", "impact crater"],
-        ["crater"] = ["crater", "impact crater"],
-        ["nebula"] = ["nebula", "emission nebula", "star formation"],
-        ["nebulae"] = ["nebula", "emission nebula", "star formation"],
-        ["galaxy"] = ["galaxy", "spiral galaxy", "deep field"],
-        ["galaxies"] = ["galaxy", "spiral galaxy", "deep field"],
-        ["aurora"] = ["aurora", "polar lights", "earth atmosphere"],
-        ["telescope"] = ["telescope", "space telescope", "observatory"],
-        ["earth"] = ["earth", "earth observation", "planet earth"],
-        ["mars"] = ["mars", "red planet", "martian"]
-    };
-
     public static string Normalize(string query)
     {
         string normalizedQuery = RemoveDiacritics(query).ToLowerInvariant().Trim();
@@ -147,28 +131,6 @@ internal static partial class SemanticSearchQueryNormalizer
         List<string> candidates = [];
         AddCandidate(candidates, Normalize(optimizedQuery));
         AddCandidate(candidates, Normalize(originalQuery));
-
-        string semanticSource = string.Join(' ', [Normalize(optimizedQuery), Normalize(originalQuery)])
-            .Trim();
-
-        if (!string.IsNullOrWhiteSpace(semanticSource))
-        {
-            string[] tokens = semanticSource
-                .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToArray();
-            string[] expandedTags = tokens
-                .SelectMany(token => SemanticTagExpansions.GetValueOrDefault(token, [token]))
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToArray();
-
-            AddCandidate(candidates, string.Join(' ', expandedTags.Take(4)));
-
-            foreach (string tag in expandedTags)
-            {
-                AddCandidate(candidates, tag);
-            }
-        }
 
         return candidates
             .Distinct(StringComparer.OrdinalIgnoreCase)

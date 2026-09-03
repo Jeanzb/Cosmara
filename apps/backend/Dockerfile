@@ -8,6 +8,7 @@ COPY src/NasaExplorer.Domain/NasaExplorer.Domain.csproj src/NasaExplorer.Domain/
 COPY src/NasaExplorer.Infrastructure/NasaExplorer.Infrastructure.csproj src/NasaExplorer.Infrastructure/
 COPY tests/NasaExplorer.Application.Tests/NasaExplorer.Application.Tests.csproj tests/NasaExplorer.Application.Tests/
 COPY tests/NasaExplorer.Infrastructure.Tests/NasaExplorer.Infrastructure.Tests.csproj tests/NasaExplorer.Infrastructure.Tests/
+COPY tests/NasaExplorer.API.Tests/NasaExplorer.API.Tests.csproj tests/NasaExplorer.API.Tests/
 RUN dotnet restore NasaExplorer.sln
 
 FROM restore AS build

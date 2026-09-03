@@ -92,8 +92,9 @@ builder.Services.AddHealthChecks();
 
 var app = builder.Build();
 
-using (IServiceScope scope = app.Services.CreateScope())
+if (!app.Environment.IsEnvironment("Testing"))
 {
+    using IServiceScope scope = app.Services.CreateScope();
     AppDbContext dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     await dbContext.Database.MigrateAsync();
     await SeedData.SeedAsync(dbContext);
@@ -140,4 +141,8 @@ static string[] GetAllowedOrigins(IConfiguration configuration)
         .Concat(configuredOrigins)
         .Distinct(StringComparer.OrdinalIgnoreCase)
         .ToArray();
+}
+
+public partial class Program
+{
 }
