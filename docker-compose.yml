@@ -40,8 +40,8 @@ services:
 
   api:
     build:
-      context: .
-      dockerfile: apps/backend/Dockerfile
+      context: ./apps/backend
+      dockerfile: Dockerfile
     container_name: nasaexplorer-api
     depends_on:
       sqlserver:
@@ -77,8 +77,8 @@ services:
 
   frontend:
     build:
-      context: .
-      dockerfile: apps/frontend/Dockerfile
+      context: ./apps/frontend
+      dockerfile: Dockerfile
       args:
         VITE_API_BASE_URL: "${DOCKER_VITE_API_BASE_URL:-http://localhost:5000}"
     container_name: nasaexplorer-frontend
