@@ -2,7 +2,7 @@
 
 Aplicación full-stack para descubrir imágenes de la NASA, buscarlas con lenguaje natural, organizarlas en colecciones y enriquecerlas con IA generativa. Cosmara combina una experiencia bilingüe con una API en .NET, búsqueda semántica auditable y persistencia en SQL Server.
 
-[Ver aplicación](https://cosmara.up.railway.app) · [Estado de la API](https://cosmara-api.up.railway.app/health) · [Código fuente](https://github.com/Jeanzb/challenge-mindshore) · [Reportar un problema](https://github.com/Jeanzb/challenge-mindshore/issues)
+[Ver aplicación](https://cosmara.up.railway.app) · [Estado de la API](https://cosmara-api.up.railway.app/health) · [Código fuente](https://github.com/Jeanzb/Cosmara) · [Reportar un problema](https://github.com/Jeanzb/Cosmara/issues)
 
 > El despliegue principal está en Railway y reemplaza al despliegue anterior de Azure. Los enlaces públicos fueron verificados el 29 de agosto de 2026. Después de un periodo sin tráfico, la primera carga puede tardar unos segundos por el arranque en frío.
 
@@ -18,8 +18,8 @@ El proyecto se desarrolló como solución al [challenge técnico de MindShore](h
 | --- | --- |
 | Aplicación web | [cosmara.up.railway.app](https://cosmara.up.railway.app) |
 | API y liveness check | [cosmara-api.up.railway.app/health](https://cosmara-api.up.railway.app/health) |
-| Repositorio | [github.com/Jeanzb/challenge-mindshore](https://github.com/Jeanzb/challenge-mindshore) |
-| Issues | [github.com/Jeanzb/challenge-mindshore/issues](https://github.com/Jeanzb/challenge-mindshore/issues) |
+| Repositorio | [github.com/Jeanzb/Cosmara](https://github.com/Jeanzb/Cosmara) |
+| Issues | [github.com/Jeanzb/Cosmara/issues](https://github.com/Jeanzb/Cosmara/issues) |
 | API de imágenes NASA | [images.nasa.gov](https://images.nasa.gov) |
 
 ## Funcionalidades
@@ -125,8 +125,8 @@ apps/frontend/src/
 1. Clona el repositorio.
 
    ```bash
-   git clone https://github.com/Jeanzb/challenge-mindshore.git
-   cd challenge-mindshore
+   git clone https://github.com/Jeanzb/Cosmara.git
+   cd Cosmara
    ```
 
 2. Copia el archivo de entorno.
@@ -301,4 +301,4 @@ Los secretos (`Jwt__Secret`, `NASA_API_KEY`, `AI_API_KEY` y credenciales SQL) se
 
 ## Estado del repositorio
 
-El repositorio público vive en [Jeanzb/challenge-mindshore](https://github.com/Jeanzb/challenge-mindshore). Esta versión documenta la migración de Azure a Railway, el dominio público de Cosmara, SQL Server persistente, la integración configurable con DeepSeek y la nueva búsqueda semántica end-to-end.
+El repositorio público vive en [Jeanzb/Cosmara](https://github.com/Jeanzb/Cosmara). Esta versión documenta la migración de Azure a Railway, el dominio público de Cosmara, SQL Server persistente, la integración configurable con DeepSeek y la nueva búsqueda semántica end-to-end.
