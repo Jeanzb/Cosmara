@@ -8,23 +8,43 @@ import { m } from "@/paraglide/messages";
 
 type SearchImageCardProps = {
   image: NasaImage;
+  onOpen: (image: NasaImage) => void;
   onPreviewIntent: (image: NasaImage) => void;
 };
 
-export function SearchImageCard({ image, onPreviewIntent }: SearchImageCardProps) {
+const getMatchReasonLabel = (reason: string): string => {
+  switch (reason) {
+    case "title":
+      return m.search_match_title();
+    case "keywords":
+      return m.search_match_keywords();
+    case "metadata":
+      return m.search_match_metadata();
+    case "description":
+      return m.search_match_description();
+    case "nasa_position":
+      return m.search_match_nasa_position();
+    default:
+      return m.search_match_other();
+  }
+};
+
+export function SearchImageCard({ image, onOpen, onPreviewIntent }: SearchImageCardProps) {
   const selectedImageId = useUiStore(uiSelectors.selectedImageId);
   const selectImage = useUiStore(uiSelectors.selectImageAction);
   const multiSelectActive = useUiStore(uiSelectors.multiSelectActive);
   const isMultiSelected = useUiStore(uiSelectors.isImageMultiSelected(image.nasaImageId));
   const toggleMultiSelectImage = useUiStore(uiSelectors.toggleMultiSelectImageAction);
   const isSelected = selectedImageId === image.nasaImageId;
+  const matchReasons = [...new Set(image.matchReasons ?? [])];
 
   const handleSelect = () => {
+    onOpen(image);
     selectImage(image);
   };
 
   const handleCardKeyDown = (event: KeyboardEvent<HTMLElement>) => {
-    if (event.key === "Enter" || event.key === " ") {
+    if (event.target === event.currentTarget && (event.key === "Enter" || event.key === " ")) {
       event.preventDefault();
       handleSelect();
     }
@@ -102,11 +122,23 @@ export function SearchImageCard({ image, onPreviewIntent }: SearchImageCardProps
             <SaveToCollectionMenu image={image} />
           </div>
         </div>
-        <div className="flex items-center">
+        <div className="flex flex-wrap items-center gap-2">
           <span className="inline-flex max-w-full items-center rounded-md border border-space-cyan/20 bg-space-cyan/10 px-2 py-1 text-[11px] font-medium text-space-cyan">
             <span className="truncate">{image.mission ?? image.center ?? "NASA"}</span>
           </span>
         </div>
+        {matchReasons.length > 0 ? (
+          <ul className="flex flex-wrap gap-1" aria-label={m.search_match_reasons()}>
+            {matchReasons.map((reason) => (
+              <li
+                key={reason}
+                className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] text-muted-foreground"
+              >
+                {getMatchReasonLabel(reason)}
+              </li>
+            ))}
+          </ul>
+        ) : null}
       </div>
     </article>
   );

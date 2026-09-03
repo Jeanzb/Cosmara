@@ -16,5 +16,5 @@
     "strict": true,
     "noEmit": true
   },
-  "include": ["**/*.ts", "**/*.tsx"]
+  "include": ["**/*.ts", "**/*.tsx", "../src/vite-env.d.ts", "../src/types/**/*.d.ts"]
 }

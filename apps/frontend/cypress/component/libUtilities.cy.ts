@@ -11,8 +11,8 @@ describe("searchDateRange utilities", () => {
   });
 
   it("uses open-ended labels when only one bound is set", () => {
-    expect(formatFriendlyDateRange("2020-06-15", "")).to.equal("Jun 2020 → today");
-    expect(formatFriendlyDateRange("", "2020-06-15")).to.equal("the earliest archives → Jun 2020");
+    expect(formatFriendlyDateRange("2020-06-15", "")).to.equal("Jun 2020 → present");
+    expect(formatFriendlyDateRange("", "2020-06-15")).to.equal("earliest → Jun 2020");
   });
 
   it("formats an ISO date to short month and year in UTC", () => {

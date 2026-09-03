@@ -1,84 +1,78 @@
 import { useNavigate } from "@tanstack/react-router";
-import { useCallback, useEffect, useRef } from "react";
-import { useNasaSearch } from "@/hooks";
-import { defaultNasaSearchPageSize, defaultNasaSearchQuery, sampleSearchImages, sampleSearchTotalHits } from "@/constants";
-import { useUiStore, uiSelectors } from "@/store";
-import { cn } from "@/lib/utils";
-import { formatTimelineRange } from "@/lib/searchTimeline";
-import type { NasaImage } from "@/types/search";
+import { useCallback, useEffect, useMemo } from "react";
 import { SearchFiltersPanel } from "@/components/search/SearchFiltersPanel";
 import { SearchInspector } from "@/components/search/SearchInspector";
 import { SearchResultsGrid } from "@/components/search/SearchResultsGrid";
 import { SearchTimeline } from "@/components/search/SearchTimeline";
+import { defaultNasaSearchPageSize, sampleSearchImages } from "@/constants";
+import { useNasaSearch } from "@/hooks";
+import { getCurrentAppLanguage } from "@/lib/i18n";
+import {
+  parseSuppressedInferences,
+  serializeSuppressedInferences,
+  toSearchFilters,
+  toSearchRouteState
+} from "@/lib/searchRoute";
+import { formatTimelineRange } from "@/lib/searchTimeline";
+import { cn } from "@/lib/utils";
+import { m } from "@/paraglide/messages";
+import { uiSelectors, useUiStore } from "@/store";
+import type {
+  NasaImage,
+  NasaRelaxationSuggestion,
+  NasaSearchFilterKey,
+  NasaSearchFilters,
+  NasaSearchRouteState
+} from "@/types/search";
 
 type SearchDashboardProps = {
-  initialQuery?: string;
+  searchState: NasaSearchRouteState;
 };
 
-export function SearchDashboard({ initialQuery }: SearchDashboardProps) {
+const hasQuery = (filters: NasaSearchFilters): boolean => filters.query.trim().length > 0;
+
+export function SearchDashboard({ searchState }: SearchDashboardProps) {
   const navigate = useNavigate();
-  const initialRouteQuery = initialQuery?.trim() ?? defaultNasaSearchQuery;
-  const lastAppliedRouteQueryRef = useRef(initialRouteQuery);
+  const language = getCurrentAppLanguage();
+  const filters = useMemo(
+    () => toSearchFilters(searchState, defaultNasaSearchPageSize, language),
+    [language, searchState]
+  );
+  const semanticSearchRequested = searchState.semantic === true;
   const selectedImage = useUiStore(uiSelectors.selectedImage);
   const inspectorOpen = useUiStore(uiSelectors.inspectorOpen);
   const clearSelectedImage = useUiStore(uiSelectors.clearSelectedImageAction);
-  const semanticSearchEnabled = useUiStore(uiSelectors.semanticSearchEnabled);
   const {
+    effectiveSemanticSearch,
     error,
     fetchNextPage,
-    filters,
     hasNextPage,
     images,
     isFetching,
     isFetchingNextPage,
     isLoading,
+    isPlaceholderData,
+    isRecoveringCursor,
     prefetchImages,
     result,
-    setSemanticSearch,
-    updateFilters
+    retry,
+    trackResultOpened,
+    trackSuggestionApplied
   } = useNasaSearch({
-    initialFilters: {
-      query: initialQuery?.trim() ?? defaultNasaSearchQuery,
-      pageSize: defaultNasaSearchPageSize
-    },
-    initialSemanticSearch: semanticSearchEnabled
+    filters,
+    semanticSearch: semanticSearchRequested
   });
-  const hasRemoteImages = images.length > 0;
-  const hasSearchResult = result !== undefined;
-  const displayImages = hasRemoteImages || isLoading || hasSearchResult ? images : sampleSearchImages;
-  const firstImage = sampleSearchImages[0];
-  const isUsingFallback = !hasSearchResult && !isLoading;
-  const fallbackImage = displayImages[0] ?? (isUsingFallback ? firstImage : undefined);
-  const totalHits = result?.totalHits ?? (isLoading ? 0 : sampleSearchTotalHits);
+  const isUsingFallback = error !== null && result === undefined && !isLoading;
+  const displayImages = isUsingFallback ? sampleSearchImages : images;
+  const fallbackImage = displayImages[0];
+  const totalHits = isUsingFallback ? sampleSearchImages.length : result?.totalHits ?? 0;
   const showInspectorColumn = inspectorOpen && fallbackImage !== undefined;
   const timelineDateRange = formatTimelineRange(filters, displayImages);
-
-  useEffect(() => {
-    setSemanticSearch(semanticSearchEnabled);
-  }, [setSemanticSearch, semanticSearchEnabled]);
-
-  useEffect(() => {
-    const nextQuery = initialQuery?.trim() ?? defaultNasaSearchQuery;
-
-    if (lastAppliedRouteQueryRef.current === nextQuery) {
-      return;
-    }
-
-    lastAppliedRouteQueryRef.current = nextQuery;
-    updateFilters({
-      query: nextQuery,
-      datePreset: "any",
-      dateFrom: null,
-      dateTo: null,
-      rover: null,
-      camera: null,
-      mission: null
-    });
-  }, [initialQuery, updateFilters]);
+  const visibleResult = isPlaceholderData ? undefined : result;
 
   useEffect(() => {
     if (displayImages.length === 0) {
-      if (hasSearchResult && selectedImage !== null) {
+      if (selectedImage !== null) {
         clearSelectedImage();
       }
 
@@ -91,7 +85,83 @@ export function SearchDashboard({ initialQuery }: SearchDashboardProps) {
     if (selectedImage !== null && !selectedImageStillVisible) {
       clearSelectedImage();
     }
-  }, [clearSelectedImage, displayImages, hasSearchResult, selectedImage]);
+  }, [clearSelectedImage, displayImages, selectedImage]);
+
+  const navigateToSearch = useCallback(
+    (nextState: NasaSearchRouteState) => {
+      void navigate({ to: "/search", search: nextState });
+    },
+    [navigate]
+  );
+
+  const applyFilters = useCallback(
+    (nextFilters: Partial<NasaSearchFilters>) => {
+      const query = nextFilters.query?.trim() ?? "";
+      const queryChanged = query !== filters.query;
+      navigateToSearch(toSearchRouteState({
+        ...nextFilters,
+        suppressInferred: queryChanged ? [] : filters.suppressInferred
+      }, semanticSearchRequested && query.length > 0));
+    },
+    [filters.query, filters.suppressInferred, navigateToSearch, semanticSearchRequested]
+  );
+
+  const toggleSemanticSearch = useCallback(
+    (enabled: boolean) => {
+      if (!hasQuery(filters)) {
+        return;
+      }
+
+      navigateToSearch(toSearchRouteState(filters, enabled));
+    },
+    [filters, navigateToSearch]
+  );
+
+  const removeAppliedFilter = useCallback(
+    (filter: NasaSearchFilterKey, inferred: boolean) => {
+      const suppressedInferences = parseSuppressedInferences(searchState.suppressInferred);
+      const removesDateBoundary = filter === "dateFrom" || filter === "dateTo";
+
+      navigateToSearch({
+        ...searchState,
+        [filter]: undefined,
+        datePreset: removesDateBoundary ? undefined : searchState.datePreset,
+        suppressInferred: inferred
+          ? serializeSuppressedInferences([...suppressedInferences, filter])
+          : searchState.suppressInferred
+      });
+    },
+    [navigateToSearch, searchState]
+  );
+
+  const applyRelaxationSuggestion = useCallback(
+    (suggestion: NasaRelaxationSuggestion) => {
+      trackSuggestionApplied(suggestion);
+      const suppressedInferences = parseSuppressedInferences(searchState.suppressInferred);
+
+      if (suggestion.filter === "dateRange") {
+        navigateToSearch({
+          ...searchState,
+          datePreset: undefined,
+          dateFrom: undefined,
+          dateTo: undefined,
+          suppressInferred: serializeSuppressedInferences([...suppressedInferences, "dateFrom", "dateTo"])
+        });
+        return;
+      }
+
+      const filter = suggestion.filter;
+      navigateToSearch({
+        ...searchState,
+        [filter]: undefined,
+        suppressInferred: serializeSuppressedInferences([
+          ...suppressedInferences,
+          filter
+        ])
+      });
+    },
+    [navigateToSearch, searchState, trackSuggestionApplied]
+  );
 
   const prefetchPreviewImage = useCallback(
     (image: NasaImage) => {
@@ -106,21 +176,9 @@ export function SearchDashboard({ initialQuery }: SearchDashboardProps) {
     }
   }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
 
-  const handleResetSearch = useCallback(() => {
-    updateFilters({
-      query: defaultNasaSearchQuery,
-      datePreset: "any",
-      dateFrom: null,
-      dateTo: null,
-      rover: null,
-      camera: null,
-      mission: null
-    });
-
-    if (initialQuery !== undefined) {
-      void navigate({ to: "/search", search: {} });
-    }
-  }, [initialQuery, navigate, updateFilters]);
+  const resetSearch = useCallback(() => {
+    navigateToSearch({});
+  }, [navigateToSearch]);
 
   return (
     <section
@@ -131,19 +189,29 @@ export function SearchDashboard({ initialQuery }: SearchDashboardProps) {
           : "lg:grid-cols-[260px_minmax(0,1fr)_0px]"
       )}
     >
-      <SearchFiltersPanel filters={filters} isFetching={isFetching} onApplyFilters={updateFilters} />
+      <h1 className="sr-only">{m.search_page_title()}</h1>
+      <SearchFiltersPanel filters={filters} isFetching={isFetching} onApplyFilters={applyFilters} />
       <SearchResultsGrid
         images={displayImages}
+        result={visibleResult}
         totalHits={totalHits}
         isLoading={isLoading}
         isFetching={isFetching}
         isFetchingNextPage={isFetchingNextPage}
+        isRecoveringCursor={isRecoveringCursor}
         hasNextPage={hasNextPage}
         isUsingFallback={isUsingFallback}
+        effectiveSemanticSearch={effectiveSemanticSearch}
+        semanticSearchDisabled={!hasQuery(filters)}
         error={error}
+        onImageOpened={trackResultOpened}
         onImagePreviewIntent={prefetchPreviewImage}
         onLoadMore={loadNextPage}
-        onResetSearch={handleResetSearch}
+        onResetSearch={resetSearch}
+        onRetry={retry}
+        onSemanticSearchChange={toggleSemanticSearch}
+        onRemoveAppliedFilter={removeAppliedFilter}
+        onApplyRelaxationSuggestion={applyRelaxationSuggestion}
       />
       <SearchInspector fallbackImage={fallbackImage} />
       <SearchTimeline images={displayImages} dateRangeLabel={timelineDateRange} />

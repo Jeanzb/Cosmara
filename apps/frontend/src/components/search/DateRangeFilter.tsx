@@ -1,5 +1,6 @@
 import { CalendarDays, ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
 import { useMemo, useState } from "react";
+import { useFormField } from "@/components/ui/form";
 import { cn } from "@/lib/utils";
 import { getCurrentAppLanguage } from "@/lib/i18n";
 import { formatFriendlyDateRange } from "@/lib/searchDateRange";
@@ -82,6 +83,7 @@ const getWeekDays = (language: string): readonly string[] => Array.from({ length
 export function DateRangeFilter({ preset, dateFrom, dateTo, onPresetChange, onDateChange }: DateRangeFilterProps) {
   const showCustomInputs = preset === "custom";
   const friendlyRange = formatFriendlyDateRange(dateFrom, dateTo);
+  const { error, formMessageId } = useFormField();
 
   const renderChip = (chip: PresetChip) => {
     const isActive = preset === chip.value;
@@ -109,8 +111,20 @@ export function DateRangeFilter({ preset, dateFrom, dateTo, onPresetChange, onDa
       <div className="flex flex-wrap gap-1.5">{getPresetChips().map(renderChip)}</div>
       {showCustomInputs ? (
         <div className="grid grid-cols-1 gap-2">
-          <DateInput label={m.search_from()} value={dateFrom} onChange={onDateChange("dateFrom")} />
-          <DateInput label={m.search_to()} value={dateTo} onChange={onDateChange("dateTo")} />
+          <DateInput
+            label={m.search_from()}
+            value={dateFrom}
+            invalid={error !== undefined}
+            describedBy={error === undefined ? undefined : formMessageId}
+            onChange={onDateChange("dateFrom")}
+          />
+          <DateInput
+            label={m.search_to()}
+            value={dateTo}
+            invalid={error !== undefined}
+            describedBy={error === undefined ? undefined : formMessageId}
+            onChange={onDateChange("dateTo")}
+          />
         </div>
       ) : null}
       <div className="flex items-center gap-2 rounded-lg border border-space-cyan/15 bg-space-cyan/5 px-3 py-2">
@@ -126,10 +140,12 @@ export function DateRangeFilter({ preset, dateFrom, dateTo, onPresetChange, onDa
 type DateInputProps = {
   label: string;
   value: string;
+  invalid: boolean;
+  describedBy?: string;
   onChange: (value: string) => void;
 };
 
-function DateInput({ label, value, onChange }: DateInputProps) {
+function DateInput({ label, value, invalid, describedBy, onChange }: DateInputProps) {
   const selectedDate = parseDateValue(value);
   const language = getCurrentAppLanguage();
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
@@ -190,6 +206,8 @@ function DateInput({ label, value, onChange }: DateInputProps) {
           type="button"
           className="cosmara-control flex min-w-0 items-center justify-between pr-2 text-left text-xs font-medium"
           aria-expanded={isCalendarOpen}
+          aria-invalid={invalid}
+          aria-describedby={describedBy}
           onClick={toggleCalendar}
         >
           <span className={cn(selectedDate === null && "text-muted-foreground")}>{displayValue}</span>

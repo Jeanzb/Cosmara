@@ -1,14 +1,15 @@
 import { AppShell } from "@/components/app";
 import { SearchDashboard } from "@/components/search";
+import type { NasaSearchRouteState } from "@/types/search";
 
 type SearchPageProps = {
-  initialQuery?: string;
+  searchState: NasaSearchRouteState;
 };
 
-export function SearchPage({ initialQuery }: SearchPageProps) {
+export function SearchPage({ searchState }: SearchPageProps) {
   return (
     <AppShell contentClassName="overflow-hidden">
-      <SearchDashboard initialQuery={initialQuery} />
+      <SearchDashboard searchState={searchState} />
     </AppShell>
   );
 }

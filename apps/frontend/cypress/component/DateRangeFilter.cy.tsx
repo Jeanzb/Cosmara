@@ -1,11 +1,35 @@
 import { DateRangeFilter } from "@/components/search/DateRangeFilter";
+import { Form, FormField, FormItem } from "@/components/ui/form";
+import { useForm } from "react-hook-form";
+
+type DateRangeFilterProps = React.ComponentProps<typeof DateRangeFilter>;
+
+function DateRangeFilterHarness(props: DateRangeFilterProps) {
+  const form = useForm<{ dateTo: string }>({
+    defaultValues: { dateTo: props.dateTo }
+  });
+
+  return (
+    <Form {...form}>
+      <FormField
+        control={form.control}
+        name="dateTo"
+        render={() => (
+          <FormItem>
+            <DateRangeFilter {...props} />
+          </FormItem>
+        )}
+      />
+    </Form>
+  );
+}
 
 const noopDateChange = () => () => undefined;
 
 describe("<DateRangeFilter />", () => {
   it("renders the four quick presets", () => {
     cy.mount(
-      <DateRangeFilter preset="any" dateFrom="" dateTo="" onPresetChange={() => {}} onDateChange={noopDateChange} />
+      <DateRangeFilterHarness preset="any" dateFrom="" dateTo="" onPresetChange={() => {}} onDateChange={noopDateChange} />
     );
 
     cy.contains("button", "Any time").should("be.visible");
@@ -16,7 +40,7 @@ describe("<DateRangeFilter />", () => {
 
   it("marks the active preset as pressed", () => {
     cy.mount(
-      <DateRangeFilter preset="last-year" dateFrom="" dateTo="" onPresetChange={() => {}} onDateChange={noopDateChange} />
+      <DateRangeFilterHarness preset="last-year" dateFrom="" dateTo="" onPresetChange={() => {}} onDateChange={noopDateChange} />
     );
 
     cy.contains("button", "Last year").should("have.attr", "aria-pressed", "true");
@@ -26,7 +50,7 @@ describe("<DateRangeFilter />", () => {
   it("calls onPresetChange with the chosen preset", () => {
     const onPresetChange = cy.stub().as("onPresetChange");
     cy.mount(
-      <DateRangeFilter preset="any" dateFrom="" dateTo="" onPresetChange={onPresetChange} onDateChange={noopDateChange} />
+      <DateRangeFilterHarness preset="any" dateFrom="" dateTo="" onPresetChange={onPresetChange} onDateChange={noopDateChange} />
     );
 
     cy.contains("button", "Custom").click();
@@ -35,7 +59,7 @@ describe("<DateRangeFilter />", () => {
 
   it("shows a plain-language range and hides the date inputs by default", () => {
     cy.mount(
-      <DateRangeFilter preset="any" dateFrom="" dateTo="" onPresetChange={() => {}} onDateChange={noopDateChange} />
+      <DateRangeFilterHarness preset="any" dateFrom="" dateTo="" onPresetChange={() => {}} onDateChange={noopDateChange} />
     );
 
     cy.contains("Spanning the entire NASA archive").should("be.visible");
@@ -44,7 +68,7 @@ describe("<DateRangeFilter />", () => {
 
   it("reveals from/to controls in custom mode", () => {
     cy.mount(
-      <DateRangeFilter preset="custom" dateFrom="" dateTo="" onPresetChange={() => {}} onDateChange={noopDateChange} />
+      <DateRangeFilterHarness preset="custom" dateFrom="" dateTo="" onPresetChange={() => {}} onDateChange={noopDateChange} />
     );
 
     cy.contains("From").should("be.visible");
@@ -55,7 +79,7 @@ describe("<DateRangeFilter />", () => {
   it("opens the calendar and reports selected dates", () => {
     const onDateChange = cy.stub().as("onDateChange");
     cy.mount(
-      <DateRangeFilter
+      <DateRangeFilterHarness
         preset="custom"
         dateFrom="2024-01-01"
         dateTo=""
@@ -72,7 +96,7 @@ describe("<DateRangeFilter />", () => {
 
   it("describes a closed range in plain language", () => {
     cy.mount(
-      <DateRangeFilter
+      <DateRangeFilterHarness
         preset="custom"
         dateFrom="2024-01-01"
         dateTo="2024-12-31"

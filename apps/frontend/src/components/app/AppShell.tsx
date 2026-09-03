@@ -1,3 +1,4 @@
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   ChevronDown,
@@ -9,7 +10,9 @@ import {
   Search,
   type LucideIcon
 } from "lucide-react";
-import { useEffect, useState, type ChangeEvent, type FormEvent, type ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,6 +24,7 @@ import {
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form";
 import { defaultNasaSearchQuery } from "@/constants";
 import { useAuthSession } from "@/hooks/auth";
 import { useUiStore, uiSelectors } from "@/store";
@@ -28,6 +32,7 @@ import { cn } from "@/lib/utils";
 import { fallbackExplorerName, getUserDisplayName, getUserInitials } from "@/lib/userProfile";
 import { m } from "@/paraglide/messages";
 import { setAppLanguage } from "@/lib/i18n";
+import { normalizeSearchRouteState } from "@/lib/searchRoute";
 import type { AppLanguage } from "@/types/ui";
 
 type AppShellProps = {
@@ -43,6 +48,12 @@ type AppNavLinkProps = {
   icon: LucideIcon;
   isActive: boolean;
 };
+
+const shellSearchSchema = z.object({
+  query: z.string().trim().max(160)
+});
+
+type ShellSearchFormValues = z.infer<typeof shellSearchSchema>;
 
 const isRouteActive = (pathname: string, target: AppNavTarget): boolean =>
   pathname === target || pathname.startsWith(`${target}/`);
@@ -92,7 +103,7 @@ export function AppShell({ children, contentClassName }: AppShellProps) {
           <ShellSearchField />
           <div className="flex items-center gap-2 justify-end">
             <LanguageMenu />
-            <MobileSearchLink />
+            <MobileSearchLink pathname={pathname} />
             <UserMenu />
           </div>
         </div>
@@ -242,53 +253,80 @@ function ShellSearchField() {
       search: state.location.search as { q?: unknown }
     })
   });
-  const routeQuery = pathname.startsWith("/search") && typeof search.q === "string" ? search.q : "";
-  const [query, setQuery] = useState(routeQuery);
+  const activeSearchState = pathname.startsWith("/search")
+    ? normalizeSearchRouteState(search as Record<string, unknown>)
+    : {};
+  const routeQuery = activeSearchState.q ?? "";
+  const form = useForm<ShellSearchFormValues>({
+    resolver: zodResolver(shellSearchSchema),
+    defaultValues: { query: routeQuery }
+  });
+  const { reset } = form;
 
   useEffect(() => {
-    setQuery(routeQuery);
-  }, [routeQuery]);
+    reset({ query: routeQuery });
+  }, [reset, routeQuery]);
 
-  const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
-    setQuery(event.target.value);
-  };
-
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
-    const nextQuery = query.trim();
+  const handleSubmit = (values: ShellSearchFormValues) => {
+    const nextQuery = values.query.trim();
+    const queryChanged = nextQuery !== routeQuery;
 
     void navigate({
       to: "/search",
       search: {
-        q: nextQuery.length > 0 && nextQuery !== defaultNasaSearchQuery ? nextQuery : undefined
+        ...activeSearchState,
+        q: nextQuery.length > 0 && nextQuery !== defaultNasaSearchQuery ? nextQuery : undefined,
+        semantic: nextQuery.length > 0 ? activeSearchState.semantic : undefined,
+        suppressInferred: queryChanged ? undefined : activeSearchState.suppressInferred
       }
     });
   };
 
   return (
-    <form className="mx-auto hidden w-full max-w-[420px] items-center md:flex" onSubmit={handleSubmit}>
-      <div className="relative w-full">
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          type="search"
-          value={query}
-          onChange={handleChange}
-          placeholder={m.search_placeholder()}
-          className="h-9 rounded-full border-white/10 bg-space-void/60 pl-10 pr-4 text-sm text-foreground shadow-inner shadow-black/20 placeholder:text-muted-foreground focus-visible:ring-space-cyan/70"
-          aria-label={m.search_aria()}
+    <Form {...form}>
+      <form
+        className="mx-auto hidden w-full max-w-[420px] items-center md:flex"
+        noValidate
+        onSubmit={form.handleSubmit(handleSubmit)}
+      >
+        <FormField
+          control={form.control}
+          name="query"
+          render={({ field }) => (
+            <FormItem className="relative w-full space-y-0">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <FormControl>
+                <Input
+                  {...field}
+                  type="search"
+                  maxLength={160}
+                  placeholder={m.search_placeholder()}
+                  className="h-9 rounded-full border-white/10 bg-space-void/60 pl-10 pr-4 text-sm text-foreground shadow-inner shadow-black/20 placeholder:text-muted-foreground focus-visible:ring-space-cyan/70"
+                  aria-label={m.search_aria()}
+                />
+              </FormControl>
+              <FormMessage className="sr-only" />
+            </FormItem>
+          )}
         />
-      </div>
-    </form>
+      </form>
+    </Form>
   );
 }
 
-function MobileSearchLink() {
+type MobileSearchLinkProps = {
+  pathname: string;
+};
+
+function MobileSearchLink({ pathname }: MobileSearchLinkProps) {
   const navigate = useNavigate();
   const openMobileFilters = useUiStore(uiSelectors.openMobileFiltersAction);
 
   const handleClick = () => {
-    void navigate({ to: "/search" });
+    if (!pathname.startsWith("/search")) {
+      void navigate({ to: "/search", search: {} });
+    }
+
     openMobileFilters();
   };
 
@@ -298,7 +336,8 @@ function MobileSearchLink() {
       variant="ghost"
       size="icon"
       className="h-9 w-9 text-muted-foreground hover:bg-white/5 hover:text-foreground md:hidden"
-      aria-label="Search"
+      aria-label={m.search_aria()}
+      data-cy="mobile-search"
       onClick={handleClick}
     >
       <Search className="h-5 w-5" />
